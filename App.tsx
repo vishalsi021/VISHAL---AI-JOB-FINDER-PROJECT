@@ -254,7 +254,12 @@ const App: React.FC = () => {
               <p className="text-center text-gray-300 max-w-2xl mx-auto mb-8">
                 Enter a job title or field to discover trending skills and recommended online courses, powered by your local Python backend.
               </p>
-              <SearchBar onSearch={handleSearch} isLoading={isLoading} initialQuery={searchQuery} />
+              <SearchBar 
+                onSearch={handleSearch} 
+                isLoading={isLoading} 
+                initialQuery={searchQuery} 
+                suggestions={trendingJobs.map(job => job.title)}
+              />
             </div>
             
             {isLoading && <LoadingDisplay />}
