@@ -1,114 +1,44 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { AnalysisResult, DetailedRecommendation, ValidationResult, TrendingJob, PersonalizedGuidanceResult } from '../types';
+import { AnalysisResult, DetailedRecommendation, ValidationResult, InitialMarketData, PersonalizedGuidanceResult } from '../types';
 
 if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+  throw new Error("API_KEY environment variable not set for Gemini features.");
 }
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const responseSchema = {
-  type: Type.OBJECT,
-  properties: {
-    jobTitle: {
-      type: Type.STRING,
-      description: "The job title that was analyzed.",
-    },
-    summary: {
-        type: Type.STRING,
-        description: "A brief summary of the current job market trends for this role.",
-    },
-    trendingSkills: {
-      type: Type.ARRAY,
-      description: "A list of the top 5-10 trending skills for the specified job title.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: {
-            type: Type.STRING,
-            description: "The name of the skill.",
-          },
-          description: {
-            type: Type.STRING,
-            description: "A brief explanation of why this skill is important for the role.",
-          },
-          relevance: {
-            type: Type.INTEGER,
-            description: "A score from 1 to 10 indicating the skill's current relevance in the market."
-          }
-        },
-        required: ["name", "description", "relevance"],
-      },
-    },
-    recommendedCourses: {
-        type: Type.ARRAY,
-        description: "A list of 3-5 recommended online courses to learn the trending skills.",
-        items: {
-            type: Type.OBJECT,
-            properties: {
-                title: {
-                    type: Type.STRING,
-                    description: "The title of the course."
-                },
-                platform: {
-                    type: Type.STRING,
-                    description: "The platform offering the course (e.g., Coursera, Udemy, edX)."
-                },
-                url: {
-                    type: Type.STRING,
-                    description: "A direct link to the course page."
-                },
-                description: {
-                    type: Type.STRING,
-                    description: "A brief summary of what the course covers and which skills it addresses."
-                }
-            },
-            required: ["title", "platform", "url", "description"]
-        }
-    }
-  },
-  required: ["jobTitle", "summary", "trendingSkills", "recommendedCourses"],
-};
-
-
+/**
+ * This function now calls the local Python backend to perform web scraping and analysis.
+ * It's a real fetch request to a server you will run on your machine.
+ */
 export const analyzeJobMarket = async (jobTitle: string): Promise<AnalysisResult> => {
-  const prompt = `
-    Act as a simulated Python-based job analysis engine.
-    You have just completed a multi-step backend process:
-    1. Scraped job portals (like LinkedIn, Indeed) for the role of "${jobTitle}" using the BeautifulSoup library.
-    2. Processed the scraped text data using the NLTK library for Natural Language Processing to extract key skills and requirements.
-    3. Queried a local SQLite database of online courses to find relevant matches for the extracted skills.
-    
-    Now, compile the results of this simulated process into a single, structured JSON object.
-    Based on the "scraped" data, provide:
-    - A brief summary of the demand and outlook for this role.
-    - A list of the top 5-10 most in-demand skills identified by your "NLTK process".
-    - A list of 3-5 high-quality online courses from your "SQLite database" that would help someone acquire these skills.
-
-    Your entire output MUST be a JSON object that strictly validates against the provided schema.
-  `;
+  const backendUrl = 'http://127.0.0.1:5000/analyze'; // Standard local Flask server address
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: responseSchema,
-        temperature: 0.2,
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ job_title: jobTitle }),
     });
-    
-    const jsonText = response.text.trim();
-    const result: AnalysisResult = JSON.parse(jsonText);
+
+    if (!response.ok) {
+      // Try to get a more specific error from the backend response
+      const errorData = await response.json().catch(() => ({ error: 'An unknown backend error occurred.' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const result: AnalysisResult = await response.json();
     return result;
 
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    throw new Error("Failed to get analysis from AI service.");
+    console.error("Error fetching from local backend:", error);
+    throw new Error("Could not connect to the local Python server.");
   }
 };
+
 
 const recommendationSchema = {
     type: Type.OBJECT,
@@ -337,84 +267,61 @@ export const getDetailedJobRecommendation = async (
   }
 };
 
-const stringListSchema = {
-  type: Type.OBJECT,
-  properties: {
-    items: {
-      type: Type.ARRAY,
-      description: "A list of strings.",
-      items: {
-        type: Type.STRING,
-      },
+const initialMarketDataSchema = {
+    type: Type.OBJECT,
+    properties: {
+        trendingJobs: {
+            type: Type.ARRAY,
+            description: "A list of 6-8 trending job objects for the Indian market.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING, description: "The job title." },
+                    salaryRange: { type: Type.STRING, description: "Estimated annual salary range in Indian Rupees (e.g., '₹12-18 LPA')." },
+                    growth: { type: Type.STRING, enum: ['Hot', 'Growing', 'Stable'], description: "The growth trajectory of this role." },
+                    topIndustries: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 industries hiring for this role." },
+                    keySkills: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 key skills required for this role." }
+                },
+                required: ["title", "salaryRange", "growth", "topIndustries", "keySkills"]
+            }
+        },
+        topSkills: {
+            type: Type.ARRAY,
+            description: "A list of 8 of the most in-demand skills in the current job market.",
+            items: {
+                type: Type.STRING,
+            },
+        },
     },
-  },
-  required: ["items"],
+    required: ["trendingJobs", "topSkills"]
 };
 
-const trendingJobSchema = {
-  type: Type.OBJECT,
-  properties: {
-    jobs: {
-      type: Type.ARRAY,
-      description: "A list of trending job objects.",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING, description: "The job title." },
-          salaryRange: { type: Type.STRING, description: "Estimated annual salary range in Indian Rupees (e.g., '₹12-18 LPA')." },
-          growth: { type: Type.STRING, enum: ['Hot', 'Growing', 'Stable'], description: "The growth trajectory of this role." },
-          topIndustries: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 industries hiring for this role." },
-          keySkills: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 key skills required for this role." }
-        },
-        required: ["title", "salaryRange", "growth", "topIndustries", "keySkills"]
-      }
-    }
-  },
-  required: ["jobs"]
-};
-
-
-export const getTrendingJobs = async (): Promise<TrendingJob[]> => {
-  const currentMonthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const prompt = `Act as a premium market intelligence analyst for the Indian job market for ${currentMonthYear}. Based on recent market data, identify 6-8 high-demand job roles that have seen significant growth. For each job, provide a comprehensive data object including: 1. The job title. 2. An estimated annual salary range in Indian Rupees (LPA format). 3. A growth assessment ('Hot', 'Growing', or 'Stable'). 4. The top 3 industries hiring for this role. 5. The top 3 key skills required for this role. The list should be diverse. Return a JSON object with a single key 'jobs' containing an array of job objects.`;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: trendingJobSchema,
-        temperature: 0.5,
-      },
-    });
-    const jsonText = response.text.trim();
-    const result: { jobs: TrendingJob[] } = JSON.parse(jsonText);
-    return result.jobs;
-  } catch (error) {
-    console.error("Error calling Gemini API for trending jobs:", error);
-    throw new Error("Failed to get trending jobs from AI service.");
-  }
-};
-
-export const getTopSkills = async (): Promise<string[]> => {
+export const getInitialMarketData = async (): Promise<InitialMarketData> => {
     const currentMonthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    const prompt = `Act as a talent acquisition analyst for ${currentMonthYear}. Identify 8 of the most in-demand skills in the current job market, focusing on what has become critical in the last 3-4 months. Include a mix of technical and soft skills (e.g., 'AI & Machine Learning', 'Cloud Computing', 'Adaptability'). Return the response as a JSON object with a single key 'items' containing an array of skill name strings.`;
+    const prompt = `
+        Act as a premium market intelligence analyst for the Indian job market for ${currentMonthYear}.
+        Your task is to provide a single, comprehensive market overview.
+        Generate a JSON object containing two key properties:
+        1. 'trendingJobs': An array of 6-8 high-demand job roles. For each job, provide a detailed object including its title, an estimated annual salary range in Indian Rupees (LPA format), a growth assessment ('Hot', 'Growing', or 'Stable'), the top 3 hiring industries, and the top 3 key skills.
+        2. 'topSkills': An array of 8 of the most in-demand skills in the current market, focusing on what has become critical recently. Include a mix of technical and soft skills.
+        The entire output must be a single JSON object that strictly validates against the provided schema.
+    `;
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: stringListSchema,
-          temperature: 0.5,
-        },
-      });
-      const jsonText = response.text.trim();
-      const result: { items: string[] } = JSON.parse(jsonText);
-      return result.items;
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: initialMarketDataSchema,
+                temperature: 0.5,
+            },
+        });
+        const jsonText = response.text.trim();
+        const result: InitialMarketData = JSON.parse(jsonText);
+        return result;
     } catch (error) {
-      console.error("Error calling Gemini API for top skills:", error);
-      throw new Error("Failed to get top skills from AI service.");
+        console.error("Error calling Gemini API for initial market data:", error);
+        throw new Error("Failed to get initial market data from AI service.");
     }
 };
 

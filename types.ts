@@ -27,6 +27,11 @@ export interface TrendingJob {
   keySkills: string[];
 }
 
+export interface InitialMarketData {
+  trendingJobs: TrendingJob[];
+  topSkills: string[];
+}
+
 export interface TargetCompany {
   companyName: string;
   roles: string[];

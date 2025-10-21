@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PersonalizedGuidanceResult } from '../types';
 
@@ -48,7 +49,7 @@ export const PersonalizedGuidance: React.FC<PersonalizedGuidanceProps> = ({ onGe
                 </button>
             )}
 
-            {error && <p className="text-red-400 text-sm mt-4"><i className="fas fa-exclamation-circle mr-1"></i> {error}</p>}
+            {error && !isLoading && <p className="text-red-400 text-sm mt-4"><i className="fas fa-exclamation-circle mr-1"></i> {error}</p>}
             
             {guidance && (
                 <div className="mt-6 animate-fade-in space-y-8">

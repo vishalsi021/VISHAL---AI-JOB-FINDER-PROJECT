@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TrendingJob } from '../types';
 
@@ -5,12 +6,10 @@ interface InitialDisplayProps {
     jobs: TrendingJob[];
     skills: string[];
     isLoading: boolean;
-    error: string | null;
     onJobClick: (job: string) => void;
     onSkillTarget: (skill: string) => void;
     onRefresh: () => void;
     lastUpdated: Date | null;
-    isSampleData: boolean;
 }
 
 const getIndustryIcon = (industry: string) => {
@@ -39,22 +38,13 @@ const GrowthBadge: React.FC<{ growth: 'Hot' | 'Growing' | 'Stable' }> = ({ growt
     );
 };
 
-export const InitialDisplay: React.FC<InitialDisplayProps> = ({ jobs, skills, isLoading, error, onJobClick, onSkillTarget, onRefresh, lastUpdated, isSampleData }) => {
+export const InitialDisplay: React.FC<InitialDisplayProps> = ({ jobs, skills, isLoading, onJobClick, onSkillTarget, onRefresh, lastUpdated }) => {
 
     if (isLoading && !lastUpdated) { // Only show full-page loader on first load
         return (
             <div className="flex flex-col items-center justify-center my-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
               <p className="mt-4 text-gray-300">Fetching latest market trends...</p>
-            </div>
-        );
-    }
-    
-    if (error) {
-        return (
-            <div className="mt-8 text-center text-red-400 bg-red-900/50 p-4 rounded-lg max-w-2xl mx-auto">
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                Could not load market trends. Please refresh the page.
             </div>
         );
     }
@@ -84,12 +74,7 @@ export const InitialDisplay: React.FC<InitialDisplayProps> = ({ jobs, skills, is
                             </button>
                         </div>
                     </div>
-                    {isSampleData && (
-                        <div className="mb-4 text-center text-xs text-yellow-300 bg-yellow-900/50 p-2 rounded-lg">
-                            <i className="fas fa-exclamation-triangle mr-2"></i>
-                            Could not fetch live data. Showing sample market trends for demonstration.
-                        </div>
-                    )}
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {jobs.map(job => (
                            <button

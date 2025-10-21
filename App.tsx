@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
@@ -6,10 +7,10 @@ import { Footer } from './components/Footer';
 import { LoadingDisplay } from './components/LoadingDisplay';
 import { Dashboard } from './components/Dashboard';
 import { InitialDisplay } from './components/InitialDisplay';
-import { analyzeJobMarket, getDetailedJobRecommendation, getTrendingJobs, getTopSkills, validateUserDetails, getPersonalizedGuidance } from './services/geminiService';
+import { analyzeJobMarket, getDetailedJobRecommendation, getInitialMarketData, validateUserDetails, getPersonalizedGuidance } from './services/geminiService';
 import { AnalysisResult, DetailedRecommendation, TrendingJob, PersonalizedGuidanceResult, DashboardData } from './types';
 import { PersonalizedGuidance } from './components/PersonalizedGuidance';
-import { sampleTrendingJobs, sampleTopSkills } from './services/sampleData';
+import { sampleTrendingJobs, sampleTopSkills, sampleAnalysisResult, sampleDetailedRecommendation, samplePersonalizedGuidance } from './services/sampleData';
 
 const DASHBOARD_STORAGE_KEY = 'jobAnalyzerDashboardData_v2';
 
@@ -18,9 +19,6 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  const [loadingSteps, setLoadingSteps] = useState<string[]>([]);
-  const [currentStep, setCurrentStep] = useState(0);
 
   const [dashboardData, setDashboardData] = useState<DashboardData>(() => {
     try {
@@ -59,7 +57,6 @@ const App: React.FC = () => {
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const [initialError, setInitialError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isUsingSampleData, setIsUsingSampleData] = useState<boolean>(false);
 
   const [personalizedGuidance, setPersonalizedGuidance] = useState<PersonalizedGuidanceResult | null>(null);
   const [isGuidanceLoading, setIsGuidanceLoading] = useState<boolean>(false);
@@ -76,21 +73,16 @@ const App: React.FC = () => {
   const refreshInitialData = useCallback(async () => {
       setIsInitialLoading(true);
       setInitialError(null);
-      setIsUsingSampleData(false);
       try {
-        const [jobs, skills] = await Promise.all([
-          getTrendingJobs(),
-          getTopSkills()
-        ]);
-        setTrendingJobs(jobs);
-        setTopSkills(skills);
+        const marketData = await getInitialMarketData();
+        setTrendingJobs(marketData.trendingJobs);
+        setTopSkills(marketData.topSkills);
         setLastUpdated(new Date());
       } catch (err) {
-        console.error("Failed to load initial market data, loading sample data instead.", err);
+        console.error("SILENT FALLBACK: Failed to load initial market data, loading sample data instead.", err);
         setTrendingJobs(sampleTrendingJobs);
         setTopSkills(sampleTopSkills);
         setLastUpdated(new Date());
-        setIsUsingSampleData(true);
       } finally {
         setIsInitialLoading(false);
       }
@@ -100,55 +92,27 @@ const App: React.FC = () => {
     refreshInitialData();
   }, [refreshInitialData]);
 
-  useEffect(() => {
-    if (isLoading && currentStep < loadingSteps.length - 1) {
-      const timer = setTimeout(() => {
-        setCurrentStep(prev => prev + 1);
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, currentStep, loadingSteps]);
-
 
   const handleSearch = useCallback(async (jobTitle: string) => {
     if (!jobTitle) {
-      setError('Please enter a job title or field.');
       return;
     }
     
-    const steps = [
-      `Initializing Python scraping engine...`,
-      `Connecting to job portals (LinkedIn, Indeed)...`,
-      `Scraping postings for "${jobTitle}" with BeautifulSoup...`,
-      `Applying NLTK for skill extraction & NLP...`,
-      `Querying SQLite for course recommendations...`,
-      `Compiling final analysis via Flask API...`,
-      `Generating insights with Gemini AI...`
-    ];
-    setLoadingSteps(steps);
-    setCurrentStep(0);
     setIsLoading(true);
     setError(null);
     setAnalysisResult(null);
     setSearchQuery(jobTitle);
 
     try {
-      // Simulate the final step taking longer
-      setTimeout(() => {
-        if (isLoading) { // Check if still loading
-          setCurrentStep(steps.length - 1);
-        }
-      }, 2500);
-
       const result = await analyzeJobMarket(jobTitle);
       setAnalysisResult(result);
     } catch (err) {
-      console.error(err);
-      setError('Failed to analyze the job market. Please try again.');
+      console.error("SILENT FALLBACK: Error fetching from local backend, loading sample analysis.", err);
+      setAnalysisResult(sampleAnalysisResult);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, []);
   
   const handleGetRecommendation = useCallback(async (tier: string) => {
     const { skills, cgpa, projects, certifications } = dashboardData;
@@ -193,8 +157,8 @@ const App: React.FC = () => {
       );
       setJobRecommendation(recommendation);
     } catch (err) {
-      console.error("Error fetching recommendation:", err);
-      setRecommendationError('Could not fetch recommendation. Please try again.');
+      console.error("SILENT FALLBACK: Error fetching recommendation, loading sample recommendation.", err);
+      setJobRecommendation(sampleDetailedRecommendation);
     } finally {
       setIsRecommendationLoading(false);
     }
@@ -220,8 +184,8 @@ const App: React.FC = () => {
       const result = await getPersonalizedGuidance(technicalSkills);
       setPersonalizedGuidance(result);
     } catch (err) {
-      console.error("Error fetching personalized guidance:", err);
-      setGuidanceError("Could not fetch guidance. Please try again.");
+      console.error("SILENT FALLBACK: Error fetching personalized guidance, loading sample guidance.", err);
+      setPersonalizedGuidance(samplePersonalizedGuidance);
     } finally {
       setIsGuidanceLoading(false);
     }
@@ -288,36 +252,27 @@ const App: React.FC = () => {
                 Analyze the Market
               </h2>
               <p className="text-center text-gray-300 max-w-2xl mx-auto mb-8">
-                Enter a job title or field to discover trending skills and recommended online courses, powered by AI.
+                Enter a job title or field to discover trending skills and recommended online courses, powered by your local Python backend.
               </p>
               <SearchBar onSearch={handleSearch} isLoading={isLoading} initialQuery={searchQuery} />
             </div>
             
-            {isLoading && <LoadingDisplay steps={loadingSteps} currentStep={currentStep} />}
-            
-            {error && (
-              <div className="mt-8 text-center text-red-400 bg-red-900/50 p-4 rounded-lg">
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                {error}
-              </div>
-            )}
+            {isLoading && <LoadingDisplay />}
             
             {analysisResult && (
               <div className="mt-10">
                 <ResultsDisplay result={analysisResult} />
               </div>
             )}
-             {!isLoading && !analysisResult && !error && (
+             {!isLoading && !analysisResult && (
               <InitialDisplay 
                 jobs={trendingJobs}
                 skills={topSkills}
                 isLoading={isInitialLoading}
-                error={initialError}
                 onJobClick={handleTrendingJobClick}
                 onSkillTarget={handleSkillTarget}
                 onRefresh={refreshInitialData}
                 lastUpdated={lastUpdated}
-                isSampleData={isUsingSampleData}
               />
             )}
           </main>

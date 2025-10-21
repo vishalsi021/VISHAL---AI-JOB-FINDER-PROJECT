@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { DashboardData } from '../types';
 import { DetailedRecommendation, LinkedInEnhancement, GitHubEnhancement, TargetCompany, ProfileAnalysis } from '../types';
@@ -242,7 +243,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data, setData, onGetRecomm
                         {isLoading ? <i className="fas fa-spinner fa-spin"></i> : "Generate My Career Path"}
                     </button>
                 </div>
-                {error && <p className="text-red-400 text-sm mt-3"><i className="fas fa-exclamation-circle mr-1"></i>{error}</p>}
+                {error && !isLoading && <p className="text-red-400 text-sm mt-3"><i className="fas fa-exclamation-circle mr-1"></i>{error}</p>}
                 
                 {recommendation && (
                     <div className="mt-6 p-6 bg-gradient-to-br from-gray-800 to-gray-900/50 rounded-lg border border-teal-700 animate-fade-in">
