@@ -25,6 +25,9 @@ const KpiBar: React.FC<{ score: number }> = ({ score }) => {
 
 
 export const GrowthPlan: React.FC<GrowthPlanProps> = ({ plan }) => {
+    const circumference = 2 * Math.PI * 52; // 2 * pi * radius
+    const offset = circumference - (plan.readinessScore / 100) * circumference;
+
     return (
         <div className="mb-8 p-6 bg-gradient-to-b from-gray-100 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 rounded-lg border border-yellow-400 dark:border-yellow-500 space-y-8 animate-fade-in">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
@@ -35,28 +38,34 @@ export const GrowthPlan: React.FC<GrowthPlanProps> = ({ plan }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="md:col-span-1 flex flex-col items-center justify-center bg-white/50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                     <p className="font-semibold text-gray-600 dark:text-gray-300 mb-2">Career Readiness Score</p>
-                    <div className="relative w-32 h-32">
-                        <svg className="w-full h-full" viewBox="0 0 36 36" style={{transform: 'rotate(-90deg)'}}>
-                            <path className="text-gray-200 dark:text-gray-700"
-                                d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
+                    <div className="relative w-40 h-40">
+                         <svg className="w-full h-full" viewBox="0 0 120 120">
+                            <circle
+                                className="text-gray-200 dark:text-gray-700"
+                                strokeWidth="10"
                                 stroke="currentColor"
-                                strokeWidth="3" />
-                            <path className="text-yellow-400"
-                                strokeDasharray={`${plan.readinessScore}, 100`}
-                                d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
+                                fill="transparent"
+                                r="52"
+                                cx="60"
+                                cy="60"
+                            />
+                            <circle
+                                className="text-yellow-400"
+                                strokeWidth="10"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={offset}
+                                strokeLinecap="round"
                                 stroke="currentColor"
-                                strokeWidth="3"
-                                strokeLinecap="round" />
+                                fill="transparent"
+                                r="52"
+                                cx="60"
+                                cy="60"
+                                style={{ transform: 'rotate(-90deg)', transformOrigin: 'center', transition: 'stroke-dashoffset 0.8s ease-out' }}
+                            />
                         </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-4xl font-bold text-gray-900 dark:text-white">{plan.readinessScore}</span>
-                            <span className="text-lg text-gray-500 dark:text-gray-400 ml-1">/100</span>
+                            <span className="text-lg text-gray-500 dark:text-gray-400">/100</span>
                         </div>
                     </div>
                 </div>

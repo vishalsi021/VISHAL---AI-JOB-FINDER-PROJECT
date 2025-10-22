@@ -191,16 +191,14 @@ const recommendationSchema = {
     required: ["summary", "careerPath"]
 };
 
-
-export const getDetailedJobRecommendation = async (
+const getPromptForRecommendation = (
   userProfile: string,
   collegeTier: string,
   timeToGraduate: string,
   cgpa: string,
   linkedinUrl?: string,
   githubUrl?: string,
-): Promise<DetailedRecommendation> => {
-  const prompt = `
+): string => `
     Act as an elite career strategist, performance review coach, and industry insider with deep expertise in the **Indian job market**. 
     Your response MUST be a comprehensive, actionable, multi-year career plan based on a rich, structured user profile.
 
@@ -246,6 +244,17 @@ export const getDetailedJobRecommendation = async (
     Your entire output MUST be a single JSON object that strictly validates against the provided schema.
   `;
 
+
+export const getDetailedJobRecommendation = async (
+  userProfile: string,
+  collegeTier: string,
+  timeToGraduate: string,
+  cgpa: string,
+  linkedinUrl?: string,
+  githubUrl?: string,
+): Promise<DetailedRecommendation> => {
+  const prompt = getPromptForRecommendation(userProfile, collegeTier, timeToGraduate, cgpa, linkedinUrl, githubUrl);
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -266,6 +275,37 @@ export const getDetailedJobRecommendation = async (
     throw new Error("Failed to get job recommendation from AI service.");
   }
 };
+
+export async function* getDetailedJobRecommendationStream(
+  userProfile: string,
+  collegeTier: string,
+  timeToGraduate: string,
+  cgpa: string,
+  linkedinUrl?: string,
+  githubUrl?: string,
+): AsyncGenerator<string> {
+  const prompt = getPromptForRecommendation(userProfile, collegeTier, timeToGraduate, cgpa, linkedinUrl, githubUrl);
+
+  try {
+    const response = await ai.models.generateContentStream({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: recommendationSchema,
+        temperature: 0.5,
+      }
+    });
+
+    for await (const chunk of response) {
+      yield chunk.text;
+    }
+
+  } catch (error) {
+    console.error("Error calling Gemini API for streaming job recommendation:", error);
+    throw new Error("Failed to get streaming job recommendation from AI service.");
+  }
+}
 
 const initialMarketDataSchema = {
     type: Type.OBJECT,

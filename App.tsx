@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { Auth } from './components/Auth';
 import { MainApplication } from './components/MainApplication';
+import { LandingPage } from './components/LandingPage';
 
 const App: React.FC = () => {
   const { currentUser, isLoading } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
 
   if (isLoading) {
     return (
@@ -14,7 +16,15 @@ const App: React.FC = () => {
     );
   }
 
-  return currentUser ? <MainApplication /> : <Auth />;
+  if (currentUser) {
+    return <MainApplication />;
+  }
+  
+  if (showAuth) {
+    return <Auth onBackToLanding={() => setShowAuth(false)} />;
+  }
+
+  return <LandingPage onGetStarted={() => setShowAuth(true)} />;
 };
 
 export default App;

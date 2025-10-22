@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Header } from './Header';
 import { SearchBar } from './SearchBar';
 import { ResultsDisplay } from './ResultsDisplay';
@@ -6,11 +8,20 @@ import { Footer } from './Footer';
 import { LoadingDisplay } from './LoadingDisplay';
 import { Dashboard } from './Dashboard';
 import { InitialDisplay } from './InitialDisplay';
-import { analyzeJobMarket, getDetailedJobRecommendation, getInitialMarketData, validateUserDetails, getPersonalizedGuidance } from '../services/geminiService';
+import { analyzeJobMarket, getDetailedJobRecommendationStream, getInitialMarketData, validateUserDetails, getPersonalizedGuidance } from '../services/geminiService';
 import { AnalysisResult, DetailedRecommendation, TrendingJob, PersonalizedGuidanceResult, DashboardData } from '../types';
 import { PersonalizedGuidance } from './PersonalizedGuidance';
 import { sampleTrendingJobs, sampleTopSkills, sampleAnalysisResult, sampleDetailedRecommendation, samplePersonalizedGuidance } from '../services/sampleData';
 import { useAuth } from '../contexts/AuthContext';
+
+// Helper to safely parse JSON
+const safeJsonParse = (jsonString: string): any => {
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return null;
+    }
+};
 
 export const MainApplication: React.FC = () => {
   const { currentUser, updateProfile } = useAuth();
@@ -34,17 +45,16 @@ export const MainApplication: React.FC = () => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Dashboard data is now derived from the currentUser state from AuthContext
   const [dashboardData, setDashboardData] = useState<DashboardData>(currentUser!);
 
   const [jobRecommendation, setJobRecommendation] = useState<DetailedRecommendation | null>(null);
   const [isRecommendationLoading, setIsRecommendationLoading] = useState<boolean>(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
   
   const [trendingJobs, setTrendingJobs] = useState<TrendingJob[]>([]);
   const [topSkills, setTopSkills] = useState<string[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
-  const [initialError, setInitialError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const [personalizedGuidance, setPersonalizedGuidance] = useState<PersonalizedGuidanceResult | null>(null);
@@ -53,12 +63,11 @@ export const MainApplication: React.FC = () => {
   
   const handleUpdateProfile = async (data: DashboardData) => {
       await updateProfile(data);
-      setDashboardData(data); // Also update local state for immediate UI feedback
+      setDashboardData(data);
   }
 
   const refreshInitialData = useCallback(async () => {
       setIsInitialLoading(true);
-      setInitialError(null);
       try {
         const marketData = await getInitialMarketData();
         setTrendingJobs(marketData.trendingJobs);
@@ -80,9 +89,7 @@ export const MainApplication: React.FC = () => {
 
 
   const handleSearch = useCallback(async (jobTitle: string) => {
-    if (!jobTitle) {
-      return;
-    }
+    if (!jobTitle) return;
     
     setIsLoading(true);
     setError(null);
@@ -101,16 +108,18 @@ export const MainApplication: React.FC = () => {
   }, []);
   
   const handleGetRecommendation = useCallback(async (tier: string) => {
-    const { skills, cgpa, projects, certifications } = dashboardData;
+    const { skills, cgpa, projects, certifications, name, college, gradYear, linkedinUrl, githubUrl } = dashboardData;
     const allSkills = Object.values(skills).join(', ');
 
     if (!allSkills || !cgpa) {
       setRecommendationError('Please enter your skills and CGPA to get a recommendation.');
       return;
     }
+    
     setIsRecommendationLoading(true);
     setRecommendationError(null);
     setJobRecommendation(null);
+    let accumulatedJson = "";
 
     const userProfileString = `
       - Languages: ${skills.languages || 'Not specified'}
@@ -123,41 +132,52 @@ export const MainApplication: React.FC = () => {
     `;
 
     try {
-      const validation = await validateUserDetails(dashboardData.name, dashboardData.college);
+      setLoadingMessage("Validating your profile details...");
+      const validation = await validateUserDetails(name, college);
       if (!validation.isValid) {
         setRecommendationError(validation.feedback);
         setIsRecommendationLoading(false);
         return;
       }
 
-      const timeToGraduate = parseInt(dashboardData.gradYear) - new Date().getFullYear();
+      const timeToGraduate = parseInt(gradYear) - new Date().getFullYear();
       const timeToGraduateText = timeToGraduate <= 0 ? 'Recently Graduated' : `${timeToGraduate} year(s)`;
 
-      const recommendation = await getDetailedJobRecommendation(
-        userProfileString, 
-        tier, 
-        timeToGraduateText,
-        dashboardData.cgpa,
-        dashboardData.linkedinUrl,
-        dashboardData.githubUrl
-      );
-      setJobRecommendation(recommendation);
+      setLoadingMessage("AI is analyzing your profile and the job market...");
+      const stream = getDetailedJobRecommendationStream(userProfileString, tier, timeToGraduateText, cgpa, linkedinUrl, githubUrl);
+
+      for await (const chunk of stream) {
+        accumulatedJson += chunk;
+        const partialData = safeJsonParse(accumulatedJson);
+        if (partialData) {
+          if (partialData.summary && !jobRecommendation?.summary) {
+             setLoadingMessage("Crafting your career summary...");
+          }
+          if (partialData.growthPlan && !jobRecommendation?.growthPlan) {
+             setLoadingMessage("Calculating your Career Readiness Score...");
+          }
+           if (partialData.careerPath && partialData.careerPath.length > 0 && (!jobRecommendation?.careerPath || jobRecommendation.careerPath.length === 0)) {
+             setLoadingMessage("Building your 5-10 year career timeline...");
+          }
+          setJobRecommendation(partialData);
+        }
+      }
+      const finalResult = safeJsonParse(accumulatedJson);
+      setJobRecommendation(finalResult);
+      
     } catch (err) {
       console.error("SILENT FALLBACK: Error fetching recommendation, loading sample recommendation.", err);
       setJobRecommendation(sampleDetailedRecommendation);
+      setRecommendationError("An error occurred while streaming. Displaying a sample result.");
     } finally {
       setIsRecommendationLoading(false);
+      setLoadingMessage('');
     }
-  }, [dashboardData]);
+  }, [dashboardData, jobRecommendation]);
 
   const handleGetGuidance = useCallback(async () => {
     const { skills } = dashboardData;
-    const technicalSkills = [
-      skills.languages,
-      skills.frameworks,
-      skills.tools,
-      skills.platforms,
-    ].filter(Boolean).join(', ');
+    const technicalSkills = [skills.languages, skills.frameworks, skills.tools, skills.platforms].filter(Boolean).join(', ');
 
     if (!technicalSkills) {
       setGuidanceError("Please enter some technical skills to get personalized guidance.");
@@ -197,15 +217,13 @@ export const MainApplication: React.FC = () => {
   const handleSkillTarget = (skillToTarget: string) => {
     const newDashboardData = { ...dashboardData };
     const existingSkills = newDashboardData.skills.tools.split(',').map(s => s.trim()).filter(Boolean);
-    if (existingSkills.includes(skillToTarget)) {
-      return; 
-    }
+    if (existingSkills.includes(skillToTarget)) return;
     const newSkills = [...existingSkills, skillToTarget].join(', ');
     newDashboardData.skills.tools = newSkills;
     handleUpdateProfile(newDashboardData);
   };
 
-  if (!currentUser) return null; // Should not happen if App.tsx logic is correct
+  if (!currentUser) return null;
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans flex flex-col">
@@ -220,6 +238,7 @@ export const MainApplication: React.FC = () => {
               onGetRecommendation={handleGetRecommendation}
               recommendation={jobRecommendation}
               isLoading={isRecommendationLoading}
+              loadingMessage={loadingMessage}
               error={recommendationError}
               onAnalyzeRecommendation={analyzeRecommendation}
             />

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { DashboardData, User } from '../types';
 import { DetailedRecommendation, LinkedInEnhancement, GitHubEnhancement, TargetCompany, ProfileAnalysis } from '../types';
 import { GrowthPlan } from './GrowthPlan';
@@ -9,6 +11,7 @@ interface DashboardProps {
     onGetRecommendation: (tier: string) => void;
     recommendation: DetailedRecommendation | null;
     isLoading: boolean;
+    loadingMessage: string;
     error: string | null;
     onAnalyzeRecommendation: () => void;
 }
@@ -161,10 +164,12 @@ const CompanyTargetCard: React.FC<{ company: TargetCompany }> = ({ company }) =>
     </div>
 );
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateProfile, onGetRecommendation, recommendation, isLoading, error, onAnalyzeRecommendation }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateProfile, onGetRecommendation, recommendation, isLoading, loadingMessage, error, onAnalyzeRecommendation }) => {
     const [tier, setTier] = useState<string>("Tier 1: Top National");
     const [isSaving, setIsSaving] = useState(false);
     const [profileData, setProfileData] = useState<DashboardData>(user);
+    const pdfRef = useRef<HTMLDivElement>(null);
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -186,6 +191,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateProfile, onG
         setIsSaving(true);
         await onUpdateProfile(profileData);
         setIsSaving(false);
+    };
+
+    const handleDownloadPdf = async () => {
+        const input = pdfRef.current;
+        if (!input) return;
+        setIsDownloadingPdf(true);
+        try {
+            const canvas = await html2canvas(input, {
+                scale: 2,
+                backgroundColor: null,
+                useCORS: true
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Career_Path_${user.name.replace(' ', '_')}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+        } finally {
+            setIsDownloadingPdf(false);
+        }
     };
 
     const currentYear = new Date().getFullYear();
@@ -262,28 +290,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateProfile, onG
                         {isLoading ? <i className="fas fa-spinner fa-spin"></i> : "Generate My Career Path"}
                     </button>
                 </div>
+                {isLoading && (
+                    <div className="text-center mt-4 text-teal-600 dark:text-teal-300">
+                        <p>{loadingMessage}</p>
+                    </div>
+                )}
                 {error && !isLoading && <p className="text-red-500 dark:text-red-400 text-sm mt-3"><i className="fas fa-exclamation-circle mr-1"></i>{error}</p>}
                 
-                {recommendation && (
-                    <div className="mt-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-lg border border-teal-300 dark:border-teal-700 animate-fade-in">
+                {(recommendation || isLoading) && (
+                    <div className="mt-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 rounded-lg border border-teal-300 dark:border-teal-700 animate-fade-in" ref={pdfRef}>
                         
-                        {recommendation.growthPlan && (
+                        {recommendation?.growthPlan && (
                             <GrowthPlan plan={recommendation.growthPlan} />
                         )}
 
-                        <div className="border-b border-gray-200 dark:border-gray-700 pb-4 my-6">
-                            <p className="text-sm text-teal-600 dark:text-teal-300 font-semibold">AI Recommended Career Path (India Focus)</p>
-                            <p className="text-gray-700 dark:text-gray-300 mt-2 italic">"{recommendation.summary}"</p>
-                        </div>
+                        {recommendation?.summary && (
+                          <div className="border-b border-gray-200 dark:border-gray-700 pb-4 my-6">
+                              <p className="text-sm text-teal-600 dark:text-teal-300 font-semibold">AI Recommended Career Path (India Focus)</p>
+                              <p className="text-gray-700 dark:text-gray-300 mt-2 italic">"{recommendation.summary}"</p>
+                          </div>
+                        )}
                         
-                        <div className="mt-8">
+                        {recommendation?.careerPath && recommendation.careerPath.length > 0 && (
+                          <div className="mt-8">
                             <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center mb-6">
                                 <i className="fas fa-road mr-3 text-blue-400"></i>
                                 Your 5-10 Year Career Timeline
                             </h3>
                             <div className="relative border-l-2 border-teal-400 dark:border-teal-700 pl-8 space-y-12 py-2">
                                  {recommendation.careerPath.map((step, index) => (
-                                     <div key={index} className="relative">
+                                     <div key={index} className="relative animate-fade-in" style={{animationDelay: `${index * 150}ms`}}>
                                         <div className="absolute -left-[42px] top-1 w-6 h-6 bg-teal-500 dark:bg-teal-400 rounded-full border-4 border-white dark:border-gray-800 flex items-center justify-center font-bold text-white dark:text-gray-900 text-xs">
                                           {index + 1}
                                         </div>
@@ -314,35 +350,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onUpdateProfile, onG
                                  ))}
                             </div>
                         </div>
+                        )}
                         
-                        {recommendation.linkedinAnalysis && (
+                        {recommendation?.linkedinAnalysis && (
                            <ProfileAnalysisCard title="LinkedIn" icon="fa-linkedin" analysis={recommendation.linkedinAnalysis} iconColor="text-blue-400"/>
                         )}
 
-                        {recommendation.githubAnalysis && (
+                        {recommendation?.githubAnalysis && (
                            <ProfileAnalysisCard title="GitHub" icon="fa-github" analysis={recommendation.githubAnalysis} iconColor="text-gray-500 dark:text-gray-300"/>
                         )}
 
-                        {recommendation.linkedinEnhancements && (
+                        {recommendation?.linkedinEnhancements && (
                            <LinkedInEnhancementPlan enhancements={recommendation.linkedinEnhancements} />
                         )}
 
-                        {recommendation.githubEnhancements && (
+                        {recommendation?.githubEnhancements && (
                            <GitHubEnhancementPlan enhancements={recommendation.githubEnhancements} />
                         )}
-
-                        {recommendation.careerPath && recommendation.careerPath.length > 0 && (
-                             <button
-                                onClick={onAnalyzeRecommendation}
-                                className="mt-8 w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center group"
-                            >
-                               Deep Dive & Analyze Starting Role: {recommendation.careerPath[0].title}
-                               <i className="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                            </button>
-                        )}
-
                     </div>
                 )}
+                 {recommendation && !isLoading && (
+                    <div className="mt-8 flex flex-col md:flex-row gap-4">
+                        <button
+                            onClick={onAnalyzeRecommendation}
+                            className="w-full md:flex-1 bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center group"
+                        >
+                           Deep Dive & Analyze Starting Role: {recommendation.careerPath[0].title}
+                           <i className="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                        <button
+                            onClick={handleDownloadPdf}
+                            disabled={isDownloadingPdf}
+                            className="w-full md:w-auto bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                            {isDownloadingPdf ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-pdf"></i>}
+                            {isDownloadingPdf ? 'Downloading...' : 'Download as PDF'}
+                        </button>
+                    </div>
+                 )}
             </div>
         </div>
     );
