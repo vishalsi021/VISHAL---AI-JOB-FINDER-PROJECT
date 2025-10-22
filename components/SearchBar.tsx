@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 
 interface SearchBarProps {
@@ -33,7 +32,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, initi
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const userInput = e.currentTarget.value;
-    const newFilteredSuggestions = userInput.length > 0 
+    const newFilteredSuggestions = userInput.length > 0
       ? suggestions.filter(suggestion =>
           suggestion.toLowerCase().includes(userInput.toLowerCase())
         )
@@ -92,18 +91,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, initi
           onFocus={handleChange}
           placeholder="e.g., 'Frontend Developer' or 'Data Scientist'"
           disabled={isLoading}
-          className="w-full pl-5 pr-32 py-4 text-lg bg-gray-800 border-2 border-gray-700 rounded-full focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all duration-300 placeholder-gray-500"
+          className="w-full pl-5 pr-32 py-4 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all duration-300 placeholder-gray-400 dark:placeholder-gray-500"
           autoComplete="off"
         />
         {showSuggestions && filteredSuggestions.length > 0 && (
-          <ul className="absolute z-10 w-full mt-2 bg-gray-800 border border-gray-700 rounded-lg max-h-60 overflow-y-auto shadow-lg animate-fade-in-fast">
+          <ul className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg max-h-60 overflow-y-auto shadow-lg animate-fade-in-fast">
             {filteredSuggestions.map((suggestion, index) => {
               const isActive = index === activeSuggestionIndex;
               return (
                 <li
-                  className={`px-4 py-3 cursor-pointer transition-colors duration-200 ${isActive ? 'bg-teal-500/20' : 'hover:bg-gray-700/60'}`}
+                  className={`px-4 py-3 cursor-pointer transition-colors duration-200 ${isActive ? 'bg-teal-100 dark:bg-teal-500/20' : 'hover:bg-gray-100 dark:hover:bg-gray-700/60'}`}
                   key={suggestion}
                   onClick={() => handleClick(suggestion)}
+                  onMouseEnter={() => setActiveSuggestionIndex(index)}
                 >
                   {suggestion}
                 </li>

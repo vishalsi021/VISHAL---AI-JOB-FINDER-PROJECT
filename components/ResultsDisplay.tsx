@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AnalysisResult } from '../types';
 import { SkillCard } from './SkillCard';
@@ -11,11 +10,11 @@ interface ResultsDisplayProps {
 export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result }) => {
   return (
     <div className="space-y-12 animate-fade-in">
-      <section className="bg-gray-800/50 p-6 md:p-8 rounded-2xl border border-gray-700">
-        <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-blue-400">
+      <section className="bg-gray-50 dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl border border-gray-200 dark:border-gray-700">
+        <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
           Market Analysis for "{result.jobTitle}"
         </h2>
-        <p className="text-gray-300 leading-relaxed">{result.summary}</p>
+        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{result.summary}</p>
       </section>
 
       <section>

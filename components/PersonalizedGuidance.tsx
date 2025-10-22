@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { PersonalizedGuidanceResult } from '../types';
 
@@ -10,18 +9,18 @@ interface PersonalizedGuidanceProps {
 }
 
 const GuidanceCard: React.FC<{ title: string; platform: string; reason: string; url: string; icon: string }> = ({ title, platform, reason, url, icon }) => (
-    <div className="bg-gray-800 p-5 rounded-xl border border-gray-700 h-full flex flex-col">
+    <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 h-full flex flex-col">
         <div className="flex-grow">
             <div className="flex items-center gap-3 mb-2">
-                <i className={`fas ${icon} text-xl text-teal-400`}></i>
+                <i className={`fas ${icon} text-xl text-teal-500 dark:text-teal-400`}></i>
                 <div>
-                    <h4 className="font-semibold text-white">{title}</h4>
-                    <p className="text-xs text-gray-400">{platform}</p>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{title}</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{platform}</p>
                 </div>
             </div>
-            <p className="text-sm text-gray-300 italic">"{reason}"</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 italic">"{reason}"</p>
         </div>
-        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-400 hover:text-blue-300 font-semibold transition-colors group mt-4 text-sm">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-semibold transition-colors group mt-4 text-sm">
             Learn More
             <i className="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
         </a>
@@ -32,22 +31,22 @@ export const PersonalizedGuidance: React.FC<PersonalizedGuidanceProps> = ({ onGe
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="bg-gray-800/50 rounded-2xl border border-gray-700 mb-12 animate-fade-in overflow-hidden transition-all duration-500">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 mb-12 animate-fade-in overflow-hidden transition-all duration-500">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full p-6 md:p-8 flex justify-between items-center text-left hover:bg-gray-800/40 transition-colors"
+                className="w-full p-6 md:p-8 flex justify-between items-center text-left hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors"
                 aria-expanded={isExpanded}
             >
-                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-blue-400 flex items-center">
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500 flex items-center">
                     <i className="fas fa-compass mr-3"></i>
                     Personalized Guidance
                 </h2>
-                <i className={`fas fa-chevron-down text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}></i>
+                <i className={`fas fa-chevron-down text-gray-500 dark:text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}></i>
             </button>
             
             <div className={`transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="px-6 md:px-8 pb-8 pt-0">
-                    <p className="text-gray-400 mb-6 max-w-3xl">
+                    <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-3xl">
                         Based on your current skills, our AI can recommend the best online courses to level up and the most effective job platforms to target.
                     </p>
                     
@@ -67,7 +66,7 @@ export const PersonalizedGuidance: React.FC<PersonalizedGuidanceProps> = ({ onGe
                         <div className="mt-6 animate-fade-in space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                     <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center"><i className="fas fa-graduation-cap mr-3 text-blue-400"></i>Recommended Courses</h3>
+                                     <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center"><i className="fas fa-graduation-cap mr-3 text-blue-400"></i>Recommended Courses</h3>
                                      <div className="space-y-4">
                                         {guidance.recommendedCourses.map(course => (
                                             <GuidanceCard 
@@ -82,7 +81,7 @@ export const PersonalizedGuidance: React.FC<PersonalizedGuidanceProps> = ({ onGe
                                      </div>
                                 </div>
                                  <div>
-                                    <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center"><i className="fas fa-briefcase mr-3 text-yellow-400"></i>Where to Apply</h3>
+                                    <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center"><i className="fas fa-briefcase mr-3 text-yellow-400"></i>Where to Apply</h3>
                                      <div className="space-y-4">
                                         {guidance.jobPlatforms.map(platform => (
                                              <GuidanceCard 

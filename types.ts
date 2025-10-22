@@ -133,3 +133,8 @@ export interface DashboardData {
   linkedinUrl: string;
   githubUrl: string;
 }
+
+export interface User extends DashboardData {
+    id: string;
+    email: string;
+}
