@@ -109,12 +109,9 @@ export const MainApplication: React.FC = () => {
   
   const handleGetRecommendation = useCallback(async (tier: string) => {
     const { skills, cgpa, projects, certifications, name, college, gradYear, linkedinUrl, githubUrl } = dashboardData;
-    const allSkills = Object.values(skills).join(', ');
 
-    if (!allSkills || !cgpa) {
-      setRecommendationError('Please enter your skills and CGPA to get a recommendation.');
-      return;
-    }
+    // Validation that blocked users without skills or CGPA is removed.
+    // The AI is capable of providing foundational guidance for profiles that are just starting out.
     
     setIsRecommendationLoading(true);
     setRecommendationError(null);
